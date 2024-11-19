@@ -31,6 +31,28 @@ class NetworkHeader:
         header.extend(self.identifier.encode())
         return header
 
+    @classmethod
+    def from_bytearray(cls, payload: bytearray) -> "NetworkHeader":
+        """
+        Creates a NetworkHeader instance from a bytearray.
+        :param payload: The bytearray to parse.
+        :return: A NetworkHeader instance.
+        """
+        # Extract type_field (1 byte)
+        type_field = payload[0]
+
+        # Extract src_addr (2 bytes)
+        src_addr = XBee16BitAddress(payload[1:3])  # Create from raw bytes
+
+        # Extract dest_addr (2 bytes)
+        dest_addr = XBee16BitAddress(payload[3:5])  # Create from raw bytes
+
+        # Extract identifier (remaining bytes)
+        identifier = payload[5:].decode()  # Decode the remaining bytes as a string
+
+        # Return a new instance of NetworkHeader
+        return cls(type_field=type_field, src_addr=str(src_addr), dest_addr=str(dest_addr), identifier=identifier)
+
     def get_type_field(self):
         return self.type_field
 
