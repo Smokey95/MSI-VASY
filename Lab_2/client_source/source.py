@@ -5,9 +5,9 @@ from utility.network_utility import NetworkHeader
 
 PRINT_SPACE = 34
 
-DEST_ADDRES = ["0xFFFF",    # Broadcast address
-               "0x13",      # destination client 1
-               "0x14"]      # destination client 2
+DEST_ADDRES = [0xFFFF,    # Broadcast address
+               0x13,      # destination client 1
+               0x14]      # destination client 2
 
 def connect_source_device(com_port = "COM3", baud_rate = 115200) -> Raw802Device:
     """
@@ -38,9 +38,10 @@ def close_source_device(device: Raw802Device):
     print("Connection to source device closed!")
 
 def send_flooding_paket(device: Raw802Device, dest_address:str):
-    flooding_packet = NetworkHeader(0, device.get_parameter('CH').hex(), dest_address)
-    device.send_data_16(flooding_packet.get_dest_addr(), flooding_packet.to_bytearray())
-    print("sending done!")
+    flooding_packet = NetworkHeader(1, int.from_bytes(device.get_parameter('CH'), "big"), dest_address)
+    #flooding_packet = NetworkHeader(1, 0x0c, dest_address)
+    device.send_data_16(XBee16BitAddress.from_hex_string(flooding_packet.get_dest_addr()), flooding_packet.to_bytearray())
+    print("sending done, packet: " + str(flooding_packet))
 
 def main():
     print("main")
