@@ -1,4 +1,6 @@
 import time
+from time import time_ns
+
 
 class Packet:
 
@@ -149,7 +151,7 @@ class Packet:
         magic_start_bits    = 0xC000   # Magic start bits: every id starts with 1100
 
         # Generate a 12-bit random number
-        seed = time.ticks_us() # get "random" time ticks as seed
+        seed = time_ns() # get "random" time ticks as seed
         seed_12 = seed & 0x0FFF # extract lower 12 bits
 
         random_value = magic_start_bits | seed_12
