@@ -1,5 +1,3 @@
-
-
 class NetworkHeader:
 
     FLOODING    = 0
@@ -26,8 +24,8 @@ class NetworkHeader:
         header = bytearray()
         #header.extend(self.src_addr.to_bytes(2, 'big'))    # 2 bytes for source_id                      # Add payload as-is
         header.extend(self.type_field.to_bytes(1, 'big'))
-        header.extend(self.src_addr.encode())
-        header.extend(self.dest_addr.encode())
+        header.extend(self.src_addr)
+        header.extend(self.dest_addr)
         header.extend(self.identifier.encode())
         return header
 
@@ -59,14 +57,14 @@ class NetworkHeader:
     def get_src_addr(self) -> str:
         """
         get the source MAC address
-        :return: str source address
+        :return: XBee16BitAddress object
         """
         return self.src_addr
 
     def get_dest_addr(self) -> str:
         """
         get the destination MAC address
-        :return: str destination address
+        :return:
         """
         return self.dest_addr
 
