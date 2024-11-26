@@ -1,4 +1,4 @@
-import random
+import time
 
 class Packet:
 
@@ -142,14 +142,20 @@ class Packet:
         return self.identifier.hex()
 
     def __generate_id(self):
+        """
+        generate a unique id using a time based pseudo-random approach as micropython does not support "random" module...
+        :return:
+        """
         magic_start_bits    = 0xC000   # Magic start bits: every id starts with 1100
-        max_value           = 0xFFFF
 
         # Generate a 12-bit random number
-        random_value = random.randint(0, 0x0FFF)
+        seed = time.ticks_us() # get "random" time ticks as seed
+        seed_12 = seed & 0x0FFF # extract lower 12 bits
+
+        random_value = magic_start_bits | seed_12
 
         # Combine magic start bits with random value
-        return magic_start_bits | random_value
+        return random_value
 
 
     def __str__(self):
