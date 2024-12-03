@@ -9,7 +9,7 @@ DEST_ADDRES = [0xFFFF,    # Broadcast address
                0x13,      # destination client 1
                0x14]      # destination client 2
 
-def connect_source_device(com_port = "COM3", baud_rate = 115200) -> Raw802Device:
+def connect_source_device(com_port = "COM4", baud_rate = 115200) -> Raw802Device:
     """
     opens the communication to a connected XBee device
     :param com_port: communication port (default COM3)
@@ -19,13 +19,13 @@ def connect_source_device(com_port = "COM3", baud_rate = 115200) -> Raw802Device
     device = Raw802Device(com_port, baud_rate)
     device.open()
 
-    device.set_parameter('NI', "sender".encode())
-    device.set_parameter('MY', bytearray.fromhex("15"))
+    device.set_parameter('NI', "intermediary".encode())
+    device.set_parameter('MY', bytearray.fromhex("13"))
     device.set_parameter('CH', bytes.fromhex("0C"))
     device.set_parameter('ID', bytes.fromhex("6969"))
 
-    print("Connection to sender device opened!")
-    print("Sender device has the following parameters:")
+    print("Connection to intermediary device opened!")
+    print("Intermediary device has the following parameters:")
     print(f"{'  Node Identifier [NI]: ':<{PRINT_SPACE}}{'%s' %  (device.get_parameter('NI').decode('utf8'))}")
     print(f"{'  16-bit Network Address [MY]: ':<{PRINT_SPACE}}{'0x%s' % (device.get_parameter('MY').hex())}")
     print(f"{'  Operating Channel [CH]: ':<{PRINT_SPACE}}{'0x%s' % (device.get_parameter('CH').hex())}")
@@ -37,22 +37,32 @@ def close_source_device(device: Raw802Device):
     device.close()
     print("Connection to source device closed!")
 
-def send_flooding_paket(device: Raw802Device, dest_address:str):
-    flooding_packet = Packet(0, int.from_bytes(device.get_parameter('CH'), "big"), dest_address)
-    #flooding_packet = NetworkHeader(1, 0x0c, dest_address)
-    device.send_data_16(XBee16BitAddress.from_hex_string("0xFFFF"), flooding_packet.to_bytearray())
-    print("sending done, packet: " + str(flooding_packet))
 
 def main():
+
     print("main")
+
     # open connection to connected device
-    src_device = connect_source_device()
+    device = connect_source_device()
 
-    #send first flooding
-    send_flooding_paket(src_device, DEST_ADDRES[0])
+    try:
 
-    # close connecition to connected device
-    close_source_device(src_device)
+        device.flush_queues()
+        print("Connection to intermediary device opened!")
+
+        while True:
+            xbee_message = device.read_data()
+            if xbee_message is not None:
+                packet = Packet.from_bytearray(xbee_message.data)
+                print(packet)
+                #print("From %s >> %s" % (xbee_message.remote_device.get_64bit_addr(), xbee_message.data.decode()))
+
+        print("Waiting for data...\n")
+        input()
+
+    finally:
+        if device is not None and device.is_open():
+            device.close()
 
 if __name__ == "__main__":
     main()
