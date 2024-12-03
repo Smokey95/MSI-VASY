@@ -11,7 +11,7 @@ TYPE        = "SENDER"
 
 def send_flooding_paket(src_addr: str, dest_addr:str, id:int):
     flooding_packet = XBeePacket(1, src_addr, dest_addr, id)
-    transmit(flooding_packet)
+    transmit(dest_addr, flooding_packet.to_bytearray())
     print("sending done, packet: " + str(flooding_packet))
 
 def main():
@@ -22,12 +22,18 @@ def main():
     mac_local = atcmd("MY")
 
     if TYPE == "SENDER":
-        send_flooding_paket(mac_local, DEST_ADDRES[1], id_gen.get_next())
+        send_flooding_paket(mac_local, DEST_ADDRES[0], id_gen.get_next())
     elif TYPE == "RECEIVER":
         while True:
             msg = receive()
             if msg:
                 print(msg)
+    elif TYPE == "INTERMEDIARY":
+        while True:
+            msg = receive()
+            if msg:
+                print(msg)
+
 
 if __name__ == "__main__":
     main()

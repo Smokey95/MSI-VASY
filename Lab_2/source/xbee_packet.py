@@ -147,3 +147,6 @@ class XBeePacket:
 
     def __str__(self):
         return "XBeePacket([type_field: " + str(self.type) + "], [src_addr: 0x" + str(self.src_addr) + "], [dest_addr: 0x" + str(self.dest_addr) + "], [identifier: " + str(self.identifier) + "], [path_cost: 0x" + str(self.path_cost) + "]"
+
+
+class FloodingTable:
