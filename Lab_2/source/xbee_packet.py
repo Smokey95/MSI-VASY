@@ -15,7 +15,9 @@ class XBeePacket:
                     3]  # Route Reply (RREP)
 
 
-    def __init__(self, type_field = 0, src_addr = 0x00, dest_addr = 0x00, identifier = 0x00, path_cost = 0x00):
+
+
+    def __init__(self, type_field = 0, src_addr = 0x00, dest_addr = 0x00, sender = 0x00, identifier = 0x00, path_cost = 0x00):
         """
         Create a network packet.
         :param type_field: 0 = Flooding, 1 = ACK, 2 = RREQ, 3 = RREP
@@ -27,8 +29,10 @@ class XBeePacket:
         self.type           = type_field.to_bytes(1, 'big')
         self.src_addr       = src_addr.to_bytes(2, 'big')
         self.dest_addr      = dest_addr.to_bytes(2, 'big')
+        self.sender = sender.to_bytes(2, 'big')
         self.identifier     = identifier.to_bytes(2, 'big')
         self.path_cost      = path_cost.to_bytes(2, 'big')
+
 
     def to_bytearray(self) -> bytearray:
         """
@@ -40,6 +44,7 @@ class XBeePacket:
         header.extend(self.type)
         header.extend(self.src_addr)
         header.extend(self.dest_addr)
+        header.extend(self.sender)
         header.extend(self.identifier)
         if self.type == self.packet_type[2] or self.type == self.packet_type[3]:
             header.extend(self.path_cost)
@@ -47,6 +52,7 @@ class XBeePacket:
 
     @classmethod
     def from_bytearray(cls, payload: bytearray) -> "XBeePacket":
+        print(payload)
         """
         Creates a network Packet instance from a bytearray (payload).\n
         Raises ValueError if payload is not in a legal "Packet" format.
@@ -54,7 +60,7 @@ class XBeePacket:
         :return: A NetworkHeader instance.
         """
         # check if payload is of legal packet size
-        if len(payload) != 7 and len(payload) != 9:
+        if len(payload) != 9 and len(payload) != 11:
             raise ValueError("payload is not from type: Packet")
 
         # Extract type_field (1 byte)
@@ -70,16 +76,20 @@ class XBeePacket:
         # Extract dest_addr (2 bytes)
         dest_addr = int.from_bytes(payload[3:5], "big")  # Create from raw bytes
 
+        sender = int.from_bytes(payload[5:7], "big")
+
         # Extract identifier (remaining bytes)
-        identifier = int.from_bytes(payload[5:7], "big")  # Decode the remaining bytes as a string
+        identifier = int.from_bytes(payload[7:9], "big")  # Decode the remaining bytes as a string
+
+
 
         # Extract path cost if type is RREQ or RREP, else 0x00
         path_cost = 0x00
         if type_field == cls.packet_type[2] or type_field == cls.packet_type[3]:
-            path_cost = int.from_bytes(payload[7:9], "big")
+            path_cost = int.from_bytes(payload[9:11], "big")
 
         # Return a new instance of network packet
-        return cls(type_field, src_addr, dest_addr, identifier, path_cost)
+        return cls(type_field, src_addr, dest_addr, sender, identifier, path_cost)
 
     def get_type(self) -> int:
         """
@@ -127,12 +137,19 @@ class XBeePacket:
         """
         return int.from_bytes(self.src_addr, "big")
 
+    def get_sender(self) -> int:
+
+        return int.from_bytes(self.sender, "big")
+
     def get_dest_addr(self) -> int:
         """
         get the destination MAC address
         :return: str destination address
         """
         return int.from_bytes(self.dest_addr, "big")
+
+    def get_path_cost(self) -> int:
+        return int.from_bytes(self.path_cost, "big")
 
     def get_flooding_addr(self) -> str:
         """
@@ -142,11 +159,10 @@ class XBeePacket:
         return "0xFFFF"
 
     def get_identifier(self) -> str:
-        return self.identifier.hex()
+        return int.from_bytes(self.identifier, "big")
+
+
 
 
     def __str__(self):
-        return "XBeePacket([type_field: " + str(self.type) + "], [src_addr: 0x" + str(self.src_addr) + "], [dest_addr: 0x" + str(self.dest_addr) + "], [identifier: " + str(self.identifier) + "], [path_cost: 0x" + str(self.path_cost) + "]"
-
-
-class FloodingTable:
+        return "XBeePacket([type_field: " + str(self.type) + "], [src_addr: 0x" + str(self.src_addr) + "], [dest_addr: 0x" + str(self.dest_addr) + "], [sender: 0x" + str(self.sender) + "], [identifier: " + str(self.identifier) + "], [path_cost: 0x" + str(self.path_cost) + "]"
