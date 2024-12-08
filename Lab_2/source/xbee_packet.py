@@ -15,8 +15,6 @@ class XBeePacket:
                     3]  # Route Reply (RREP)
 
 
-
-
     def __init__(self, type_field = 0, src_addr = 0x00, dest_addr = 0x00, sender = 0x00, identifier = 0x00, path_cost = 0x00):
         """
         Create a network packet.
@@ -161,8 +159,18 @@ class XBeePacket:
     def get_identifier(self) -> str:
         return int.from_bytes(self.identifier, "big")
 
-
-
+    def bytes_to_hex(b):
+        return "0x" + b.hex()
 
     def __str__(self):
-        return "XBeePacket([type_field: " + str(self.type) + "], [src_addr: 0x" + str(self.src_addr) + "], [dest_addr: 0x" + str(self.dest_addr) + "], [sender: 0x" + str(self.sender) + "], [identifier: " + str(self.identifier) + "], [path_cost: 0x" + str(self.path_cost) + "]"
+        def bytes_to_hex(b):
+            return "0x" + "".join("{:02x}".format(byte) for byte in b)
+
+        return (
+                "XBeePacket([type_field: " + bytes_to_hex(self.type) +
+                "], [src_addr: " + bytes_to_hex(self.src_addr) +
+                "], [dest_addr: " + bytes_to_hex(self.dest_addr) +
+                "], [sender: " + bytes_to_hex(self.sender) +
+                "], [identifier: " + bytes_to_hex(self.identifier) +
+                "], [path_cost: " + bytes_to_hex(self.path_cost) + "]"
+        )

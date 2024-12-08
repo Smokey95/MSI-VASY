@@ -1,12 +1,13 @@
 # Default template for Digi projects
 from xbee import transmit, receive, atcmd
 from xbee_packet import XBeePacket, IDGenerator
+from routing_table import RoutingTable, SHORTTICKS
 
 DEST_ADDRES = 0x01
 BRODCAST_ADRESS = 0xFFFF
 
 # Type SENDER, RECEIVER, INTERMEDIARY
-TYPE        = "RECEIVER"
+TYPE        = "SENDER"
 knownPackages = []
 knownAckPackages = []
 
@@ -36,19 +37,33 @@ def main():
     print("device started")
 
     id_gen = IDGenerator()
+    routing_table = RoutingTable()
 
     mac_local = atcmd("MY")
-    print("My Adress: "+ str(mac_local))
+    print("local adress: "+ str(mac_local))
 
     if TYPE == "SENDER":
+        print("device type: sender")
+        # debug
+        routing_table.add_entry(DEST_ADDRES, DEST_ADDRES)
         while True:
-            send_flooding_paket(mac_local, DEST_ADDRES, mac_local, id_gen.get_next())
-            input("Press Enter to receive Message...")
-            msg = receive()
-            if msg:
-                packet = XBeePacket.from_bytearray(msg['payload'])
-                print("Empfangen: " + str(packet))
             input("Press Enter to Send Message...")
+            send_flooding_paket(mac_local, DEST_ADDRES, mac_local, id_gen.get_next())
+            userinput = input("press Enter to receive Message, R to print routing table: ")
+            if userinput == "R":
+                print(str(routing_table))
+            #debug
+            elif userinput == "r":
+                x = routing_table.get_entry(DEST_ADDRES)
+            elif userinput == "clean":
+                routing_table.cleanup_expired_entries()
+            else:
+                msg = receive()
+                if msg:
+                    packet = XBeePacket.from_bytearray(msg['payload'])
+                    print("received new package: " + str(packet))
+                else:
+                    print("no message received")
     elif TYPE == "RECEIVER":
         while True:
             msg = receive()
