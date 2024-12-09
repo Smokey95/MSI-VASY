@@ -50,7 +50,6 @@ class XBeePacket:
 
     @classmethod
     def from_bytearray(cls, payload: bytearray) -> "XBeePacket":
-        print(payload)
         """
         Creates a network Packet instance from a bytearray (payload).\n
         Raises ValueError if payload is not in a legal "Packet" format.
@@ -173,4 +172,50 @@ class XBeePacket:
                 "], [sender: " + bytes_to_hex(self.sender) +
                 "], [identifier: " + bytes_to_hex(self.identifier) +
                 "], [path_cost: " + bytes_to_hex(self.path_cost) + "]"
+        )
+
+
+class XBeeMessage:
+
+    def __init__(self,msg:str="A", src_addr=0x00, dest_addr=0x00):
+        """
+        create a simple message packet
+        :param msg: message to send (min len. = 1)
+        :param src_addr:
+        :param dest_addr:
+        """
+        self.src_addr = src_addr.to_bytes(2, "big")
+        self.dest_addr = dest_addr.to_bytes(2, "big")
+        self.msg = msg.encode()
+
+    def to_bytearray(self):
+        """
+        converts the message to a byte array for XBee payload
+        :return:
+        """
+        header = bytearray()
+        header.extend(self.src_addr)
+        header.extend(self.dest_addr)
+        header.extend(self.msg)
+        return header
+
+    @classmethod
+    def from_bytearray(cls, payload: bytearray) -> "XBeeMessage":
+        if len(payload) < 5:
+            raise ValueError("payload is not from type: XBeeMessage")
+
+        src_addr = int.from_bytes(payload[0:2], "big")
+        dest_addr = int.from_bytes(payload[2:4], "big")
+        msg = payload[4:].decode()
+
+        return cls(msg=msg, src_addr=src_addr, dest_addr=dest_addr)
+
+    def __str__(self):
+        def bytes_to_hex(b):
+            return "0x" + "".join("{:02x}".format(byte) for byte in b)
+
+        return (
+            "XBeeMessage([src_addr: " + bytes_to_hex(self.src_addr) +
+            "], [dest_addr: " + bytes_to_hex(self.dest_addr) +
+            "], [msg: " + self.msg.decode() + "])"
         )

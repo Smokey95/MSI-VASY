@@ -1,7 +1,7 @@
 from utime import ticks_ms
 
-LONGTICKS = 100000000   #~27 hours, could be used as default value for route validity
-SHORTTICKS = 100        # could be used for testing and debugging
+LONGTICKS   = 100000000   #~27 hours, could be used as default value for route validity
+SHORTTICKS  = 100        # could be used for testing and debugging
 
 class RoutingTableEntry:
 
@@ -22,6 +22,13 @@ class RoutingTableEntry:
         :return: int ticks in ms
         """
         return self.timestamp
+
+    def get_next_hop_address(self):
+        """
+        return the next hop address
+        :return: next hop address
+        """
+        return self.next_hop_address
 
     def __str__(self):
         def int_to_hex(i):
@@ -46,11 +53,11 @@ class RoutingTable:
         :param next_hop_address: address of the next hop.
         """
         if destination_address in self.entries:
-            print(f"Updating entry for {destination_address}")
+            print(f"Updating entry for destination address {hex(destination_address)}")
             self.entries[destination_address].next_hop_address = next_hop_address
             self.entries[destination_address].update_timestamp()
         else:
-            print(f"Adding new entry for {destination_address}")
+            print(f"Adding new entry for destination address {hex(destination_address)}")
             self.entries[destination_address] = RoutingTableEntry(destination_address, next_hop_address)
 
     def __remove_entry(self, destination_address):
@@ -71,7 +78,9 @@ class RoutingTable:
         :param destination_address: destination address (key).
         :return: RoutingTableEntry object or None if not found/invalid.
         """
+        #print(f"DEBUG: request for destination address {hex(destination_address)}")
         entry = self.entries.get(destination_address)
+        #print(f"DEBUG: entry is {entry}")
 
         # entry not in table
         if entry is None:
@@ -82,7 +91,8 @@ class RoutingTable:
             self.__remove_entry(destination_address)
             return None
         else:
-            return entry.update_timestamp()
+            entry.update_timestamp()
+            return entry
 
 
     def cleanup_expired_entries(self):
