@@ -210,6 +210,9 @@ class XBeeMessage:
 
         return cls(msg=msg, src_addr=src_addr, dest_addr=dest_addr)
 
+    def get_dest_addr(self) -> int:
+        return int.from_bytes(self.dest_addr, "big")
+
     def __str__(self):
         def bytes_to_hex(b):
             return "0x" + "".join("{:02x}".format(byte) for byte in b)
