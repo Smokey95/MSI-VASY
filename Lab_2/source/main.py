@@ -3,6 +3,7 @@ from xbee import transmit, receive, atcmd
 from xbee_packet import XBeePacket, IDGenerator, XBeeMessage
 from routing_table import RoutingTable, SHORTTICKS
 from route_discovery import RouteDiscoveryTable
+from utime import ticks_ms
 
 SOURCE_ADDRES   = 0x15
 DEST_ADDRES     = [0x13, 0x14]
@@ -42,9 +43,9 @@ class XBeeDevice:
     def send_msg(self, dest_addr: int, src_addr: int = None,  msg: str = "Hello World!"):
         """
         sends a message to a destination node in network
-        :param src_addr:
-        :param dest_addr:
-        :param msg:
+        :param dest_addr: destination (device network address [MY]) of the message
+        :param src_addr: source address or None if own address should be used as source
+        :param msg: message to be sent
         :return:
         """
         if src_addr is None:
@@ -54,13 +55,67 @@ class XBeeDevice:
         route_table_entry = self.routing_table.get_entry(dest_addr)
         if route_table_entry is None:
             print("error: destination %s not found in routing table, initialize new route discovery" % hex(dest_addr))
-            return
-            # @todo: add route discovery process
+            route_table_entry = self.__route_discovery(dest_addr, src_addr)
 
         # get next address to destination and send message
         next_hop_address = route_table_entry.get_next_hop_address()
+        print("next hop address: " + hex(next_hop_address))
         message = XBeeMessage(msg, src_addr, dest_addr)
         transmit(next_hop_address, message.to_bytearray())
+
+    def __route_discovery(self, dest_addr: int, src_addr: int = None):
+        """
+
+        :param dest_addr:
+        :param src_addr:
+        :return:
+        """
+        print("start route discovery for destination %s" % hex(dest_addr))
+        if src_addr is None:
+            src_addr = self.local_addr
+
+        # generate new route discovery package
+        route_request = XBeePacket(2, src_addr, dest_addr, self.local_addr, self.id_generator.get_next(), 0)
+
+        # add new entry to route discovery table
+        self.route_discovery_table.add_or_update_entry((src_addr, dest_addr, route_request.get_identifier()), src_addr, 100, 100)
+        transmit(BRODCAST_ADRESS, route_request.to_bytearray())
+        route_discovery_start = ticks_ms()
+
+        while True:
+            if ticks_ms() - route_discovery_start > 1000:
+                print("route discovery timed out")
+                break
+            msg = receive()
+            if msg:
+                response = XBeePacket.from_bytearray(msg['payload'])
+                if response.get_type() == 2:
+                    if response.get_src_addr() != self.local_addr:
+                        print("received a new RREQ while discovering route, NOT IMPLEMENTED")
+                        raise NotImplementedError # @todo: implement stuff
+                    else:
+                        print("received my own RREQ while discovering route")
+                if response.get_type() == 3:
+                    print(response)
+                    resp_src_adrr = response.get_src_addr()
+                    resp_dest_adrr = response.get_dest_addr()
+                    resp_identifier = response.get_identifier()
+                    resp_sender = response.get_sender()
+                    route_discovery_entry = self.route_discovery_table.get_entry((resp_src_adrr, resp_dest_adrr, resp_identifier))
+                    if route_discovery_entry is None:
+                        print("received a RREP which is not in route discoverable table")
+                        raise NotImplementedError # @todo: implement stuff
+                    else:
+                        print(f"add entry to route discovery table with ({hex(resp_src_adrr)}, {hex(resp_dest_adrr)}, {resp_identifier}) and sender {hex(resp_sender)}")
+                        self.route_discovery_table.add_or_update_entry((resp_src_adrr, resp_dest_adrr, resp_identifier), resp_sender, response.get_path_cost(), 0)
+
+        best_rrep = self.route_discovery_table.get_entry((src_addr, dest_addr, route_request.get_identifier()))
+        print(best_rrep)
+        self.routing_table.add_entry(dest_addr, best_rrep.get_sender())
+
+        return self.routing_table.get_entry(dest_addr)
+
+
 
 def send_flooding_paket(src_addr: str, dest_addr:str, sender_addr:int, id:int, path_cost:int = 0x00,type:int = 0):
     flooding_packet = XBeePacket(type, src_addr, dest_addr, sender_addr, id, path_cost)
@@ -120,8 +175,8 @@ def main():
 
     if device.get_device_type() == "SENDER":
         # debug: add destination to routing table without RREQ
-        device.routing_table.add_entry(DEST_ADDRES[0], DEST_ADDRES[0])
-        device.routing_table.add_entry(DEST_ADDRES[1], DEST_ADDRES[0])
+        #device.routing_table.add_entry(DEST_ADDRES[0], DEST_ADDRES[0])
+        #device.routing_table.add_entry(DEST_ADDRES[1], DEST_ADDRES[0])
 
         while True:
             in_destination = input("enter destination device or press enter to send message to default (device 0)...")
@@ -134,7 +189,7 @@ def main():
 
             userinput = input("press Enter to receive Message, R to print routing table: ")
             if userinput == "R":
-                print(str(device.get_device_type()))
+                print(str(device.get_routing_table()))
             #debug
             elif userinput == "r":
                 x = device.get_routing_table().get_entry(DEST_ADDRES[0])
@@ -152,8 +207,9 @@ def main():
         # MAINLOOP
         while True:
             msg = receive()
-            if msg:
 
+            if msg:
+                print(msg['payload'])
                 # List of decoding attempts, each with a decoding function and a label (to avoid nested try expect)
                 decoders = [
                     (XBeePacket.from_bytearray, "XBeePacket"),
@@ -163,7 +219,7 @@ def main():
                 for decoder, decoder_name in decoders:
                     try:
                         packet = decoder(msg['payload'])
-                        if type(packet) == XBeeMessage:
+                        if type(packet) == XBeeMessage: # handle normal messages
                             dest_addr = packet.get_dest_addr()
                             if dest_addr == device.get_local_addr():
                                 print(f"received new msg of type {decoder_name} with payload:")
@@ -172,6 +228,18 @@ def main():
                                 print(f"received new msg of type {decoder_name} with destination {hex(dest_addr)}")
                                 print(f"forward message to destination")
                                 device.send_msg(dest_addr)
+                        if type(packet) == XBeePacket:
+                            print("received new XBeePacket")
+                            if packet.get_type() == 2:
+                                if packet.get_dest_addr() == device.get_local_addr():
+                                    print(f"received new msg of type {decoder_name}, i am the destination")
+                                    route_response = XBeePacket(3, packet.get_src_addr(), packet.get_dest_addr(), device.get_local_addr(), packet.get_identifier(), packet.get_path_cost())
+                                    transmit(packet.get_sender(), route_response.to_bytearray())
+                                else:
+                                    print(f"received new msg of type {decoder_name}, i am NOT the destination")
+                                    route_discovery = XBeePacket(2, packet.get_src_addr(), packet.get_dest_addr(), device.get_local_addr(), packet.get_identifier(), packet.get_path_cost())
+                                    transmit(BRODCAST_ADRESS, route_discovery.to_bytearray())
+
                         break
                     except ValueError:
                         pass

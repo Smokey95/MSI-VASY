@@ -57,7 +57,7 @@ class RoutingTable:
             self.entries[destination_address].next_hop_address = next_hop_address
             self.entries[destination_address].update_timestamp()
         else:
-            print(f"Adding new entry for destination address {hex(destination_address)}")
+            print(f"Adding new entry for destination address {hex(destination_address)} with next hop_address {hex(next_hop_address)}")
             self.entries[destination_address] = RoutingTableEntry(destination_address, next_hop_address)
 
     def __remove_entry(self, destination_address):

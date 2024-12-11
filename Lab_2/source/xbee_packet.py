@@ -21,13 +21,13 @@ class XBeePacket:
         :param type_field: 0 = Flooding, 1 = ACK, 2 = RREQ, 3 = RREP
         :param src_addr: MAC address of source node
         :param dest_addr: MAC address of destination node
-        :param identifier: keep empty to create unique identifier for this packet
+        :param identifier: unique identifier for this packet
         :param path_cost: path cost from source node to destination node
         """
         self.type           = type_field.to_bytes(1, 'big')
         self.src_addr       = src_addr.to_bytes(2, 'big')
         self.dest_addr      = dest_addr.to_bytes(2, 'big')
-        self.sender = sender.to_bytes(2, 'big')
+        self.sender         = sender.to_bytes(2, 'big')
         self.identifier     = identifier.to_bytes(2, 'big')
         self.path_cost      = path_cost.to_bytes(2, 'big')
 
@@ -155,7 +155,7 @@ class XBeePacket:
         """
         return "0xFFFF"
 
-    def get_identifier(self) -> str:
+    def get_identifier(self) -> int:
         return int.from_bytes(self.identifier, "big")
 
     def bytes_to_hex(b):

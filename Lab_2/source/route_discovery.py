@@ -25,6 +25,9 @@ class RouteDiscoveryEntry:
         self.sender_address = sender_address
         self.forward_cost   = forward_cost
 
+    def get_sender(self):
+        return self.sender_address
+
     def __str__(self):
         """
         readable representation of a route discovery table entry.
@@ -53,7 +56,8 @@ class RouteDiscoveryTable:
         :param forward_cost: Current path cost.
         :param link_cost: Cost of the link to the previous hop.
         """
-        updated_cost = forward_cost + link_cost
+        #updated_cost = forward_cost + link_cost
+        updated_cost = link_cost
 
         if process_id in self.entries:
             # Update only if the new RREQ has lower forward cost
@@ -62,7 +66,7 @@ class RouteDiscoveryTable:
                 print(f"Updating entry for {process_id} with better forward cost: {updated_cost}")
                 entry.update(sender_address, updated_cost)
         else:
-            print(f"Adding new entry for {process_id}")
+            print(f"RouteDiscoveryTable: Adding new entry for {hex(process_id[0])}, {hex(process_id[1])}, {hex(process_id[2])} and sender {hex(sender_address)}")
             expiration_time = self._calculate_expiration_time()
             self.entries[process_id] = RouteDiscoveryEntry(
                 process_id, sender_address, updated_cost, expiration_time=expiration_time
