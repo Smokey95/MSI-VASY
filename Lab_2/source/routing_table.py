@@ -109,6 +109,18 @@ class RoutingTable:
             print(f"Removing expired entry for {key}")
             del self.entries[key]
 
+    def delete_entries(self):
+        """
+        remove entries that have been inactive longer than the timeout.
+        """
+        expired_keys = [
+            key for key, entry in self.entries.items()
+        ]
+
+        for key in expired_keys:
+            print(f"Removing expired entry for {key}")
+            del self.entries[key]
+
     def __str__(self):
         if not self.entries:
             return "routing table is empty."
@@ -119,4 +131,3 @@ class RoutingTable:
         ret_val += ret_val.join(str(entries) for entries in self.entries.values())
         ret_val += "\n"
         return ret_val
-
