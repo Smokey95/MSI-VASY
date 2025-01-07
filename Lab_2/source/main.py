@@ -6,9 +6,9 @@ from route_discovery import RouteDiscoveryTable
 from utime import ticks_ms
 
 
-MY_ADDRESS = 0x13
-DEST_ADDRESS = 0x15
-BLOCKED_ADDRESS = 0x15
+MY_ADDRESS = 0x15
+DEST_ADDRESS = 0x20
+BLOCKED_ADDRESS = 0x13
 
 BRODCAST_ADRESS = 0xFFFF
 knownPackages = []
@@ -227,6 +227,7 @@ def main():
                                     print(f"received new msg of type {decoder_name}, i am NOT the destination")
                                     print(f"Broadcasting it with Destination {hex(packet.get_dest_addr())}")
                                     route_discovery = XBeePacket(2, packet.get_src_addr(), packet.get_dest_addr(), device.get_local_addr(), packet.get_identifier(), packet.get_path_cost())
+                                    device.routing_table.add_entry(packet.get_dest_addr, packet.get_sender)
                                     transmit(BRODCAST_ADRESS, route_discovery.to_bytearray())
                             if packet.get_type() == 3:
                                 if packet.get_dest_addr() == device.get_local_addr():
@@ -235,6 +236,7 @@ def main():
                                     print(f"received new msg of type {decoder_name}, i am NOT the destination")
                                     print(f"Broadcasting it with Destination {hex(packet.get_dest_addr())}")
                                     route_discovery = XBeePacket(3, packet.get_src_addr(), packet.get_dest_addr(), device.get_local_addr(), packet.get_identifier(), packet.get_path_cost())
+                                    device.routing_table.add_entry(packet.get_dest_addr, packet.get_sender)
                                     transmit(packet.get_src_addr(), route_discovery.to_bytearray())
 
                         break
