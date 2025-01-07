@@ -1,8 +1,12 @@
-import time
-from time import time_ns
+class IDGenerator:
+    _counter = 0  # Class-level attribute to keep track of the counter
 
+    @classmethod
+    def get_next(cls):
+        cls._counter += 1  # Increment the counter
+        return cls._counter
 
-class Packet:
+class XBeePacket:
 
     # Packet type definitions
     packet_type =  [0,  # Flooding
@@ -11,23 +15,22 @@ class Packet:
                     3]  # Route Reply (RREP)
 
 
-    def __init__(self, type_field = 0, src_addr = 0x00, dest_addr = 0x00, identifier = 0x00, path_cost = 0x00):
+    def __init__(self, type_field = 0, src_addr = 0x00, dest_addr = 0x00, sender = 0x00, identifier = 0x00, path_cost = 0x00):
         """
         Create a network packet.
         :param type_field: 0 = Flooding, 1 = ACK, 2 = RREQ, 3 = RREP
         :param src_addr: MAC address of source node
         :param dest_addr: MAC address of destination node
-        :param identifier: keep empty to create unique identifier for this packet
+        :param identifier: unique identifier for this packet
         :param path_cost: path cost from source node to destination node
         """
         self.type           = type_field.to_bytes(1, 'big')
         self.src_addr       = src_addr.to_bytes(2, 'big')
         self.dest_addr      = dest_addr.to_bytes(2, 'big')
-        if identifier == 0x00:
-            self.identifier = self.__generate_id().to_bytes(2, 'big')
-        else:
-            self.identifier = identifier.to_bytes(2, 'big')
+        self.sender         = sender.to_bytes(2, 'big')
+        self.identifier     = identifier.to_bytes(2, 'big')
         self.path_cost      = path_cost.to_bytes(2, 'big')
+
 
     def to_bytearray(self) -> bytearray:
         """
@@ -39,13 +42,14 @@ class Packet:
         header.extend(self.type)
         header.extend(self.src_addr)
         header.extend(self.dest_addr)
+        header.extend(self.sender)
         header.extend(self.identifier)
         if self.type == self.packet_type[2] or self.type == self.packet_type[3]:
             header.extend(self.path_cost)
         return header
 
     @classmethod
-    def from_bytearray(cls, payload: bytearray) -> "Packet":
+    def from_bytearray(cls, payload: bytearray) -> "XBeePacket":
         """
         Creates a network Packet instance from a bytearray (payload).\n
         Raises ValueError if payload is not in a legal "Packet" format.
@@ -53,7 +57,7 @@ class Packet:
         :return: A NetworkHeader instance.
         """
         # check if payload is of legal packet size
-        if len(payload) != 7 and len(payload) != 9:
+        if len(payload) != 9 and len(payload) != 11:
             raise ValueError("payload is not from type: Packet")
 
         # Extract type_field (1 byte)
@@ -69,16 +73,20 @@ class Packet:
         # Extract dest_addr (2 bytes)
         dest_addr = int.from_bytes(payload[3:5], "big")  # Create from raw bytes
 
+        sender = int.from_bytes(payload[5:7], "big")
+
         # Extract identifier (remaining bytes)
-        identifier = int.from_bytes(payload[5:7], "big")  # Decode the remaining bytes as a string
+        identifier = int.from_bytes(payload[7:9], "big")  # Decode the remaining bytes as a string
+
+
 
         # Extract path cost if type is RREQ or RREP, else 0x00
         path_cost = 0x00
         if type_field == cls.packet_type[2] or type_field == cls.packet_type[3]:
-            path_cost = int.from_bytes(payload[7:9], "big")
+            path_cost = int.from_bytes(payload[9:11], "big")
 
         # Return a new instance of network packet
-        return cls(type_field, src_addr, dest_addr, identifier, path_cost)
+        return cls(type_field, src_addr, dest_addr, sender, identifier, path_cost)
 
     def get_type(self) -> int:
         """
@@ -126,12 +134,19 @@ class Packet:
         """
         return int.from_bytes(self.src_addr, "big")
 
+    def get_sender(self) -> int:
+
+        return int.from_bytes(self.sender, "big")
+
     def get_dest_addr(self) -> int:
         """
         get the destination MAC address
         :return: str destination address
         """
         return int.from_bytes(self.dest_addr, "big")
+
+    def get_path_cost(self) -> int:
+        return int.from_bytes(self.path_cost, "big")
 
     def get_flooding_addr(self) -> str:
         """
@@ -140,25 +155,76 @@ class Packet:
         """
         return "0xFFFF"
 
-    def get_identifier(self) -> str:
-        return self.identifier.hex()
+    def get_identifier(self) -> int:
+        return int.from_bytes(self.identifier, "big")
 
-    def __generate_id(self):
-        """
-        generate a unique id using a time based pseudo-random approach as micropython does not support "random" module...
-        :return:
-        """
-        magic_start_bits    = 0xC000   # Magic start bits: every id starts with 1100
-
-        # Generate a 12-bit random number
-        seed = time_ns() # get "random" time ticks as seed
-        seed_12 = seed & 0x0FFF # extract lower 12 bits
-
-        random_value = magic_start_bits | seed_12
-
-        # Combine magic start bits with random value
-        return random_value
-
+    def bytes_to_hex(b):
+        return "0x" + b.hex()
 
     def __str__(self):
-        return "Packet([type_field: " + str(self.type) + "], [src_addr: 0x" + str(self.src_addr) + "], [dest_addr: 0x" + str(self.dest_addr) + "], [identifier: " + str(self.identifier) + "], [path_cost: 0x" + str(self.path_cost) + "]"
+        def bytes_to_hex(b):
+            return "0x" + "".join("{:02x}".format(byte) for byte in b)
+
+        return (
+                "XBeePacket([type_field: " + bytes_to_hex(self.type) +
+                "], [src_addr: " + bytes_to_hex(self.src_addr) +
+                "], [dest_addr: " + bytes_to_hex(self.dest_addr) +
+                "], [sender: " + bytes_to_hex(self.sender) +
+                "], [identifier: " + bytes_to_hex(self.identifier) +
+                "], [path_cost: " + bytes_to_hex(self.path_cost) + "]"
+        )
+
+
+class XBeeMessage:
+
+    def __init__(self,msg:str="A", src_addr=0x00, dest_addr=0x00):
+        """
+        create a simple message packet
+        :param msg: message to send (min len. = 1)
+        :param src_addr:
+        :param dest_addr:
+        """
+        self.src_addr = src_addr.to_bytes(2, "big")
+        self.dest_addr = dest_addr.to_bytes(2, "big")
+        self.msg = msg.encode()
+
+    def to_bytearray(self):
+        """
+        converts the message to a byte array for XBee payload
+        :return:
+        """
+        header = bytearray()
+        header.extend(self.src_addr)
+        header.extend(self.dest_addr)
+        header.extend(self.msg)
+        return header
+
+    @classmethod
+    def from_bytearray(cls, payload: bytearray) -> "XBeeMessage":
+        if len(payload) < 5:
+            raise ValueError("payload is not from type: XBeeMessage")
+
+        src_addr = int.from_bytes(payload[0:2], "big")
+        dest_addr = int.from_bytes(payload[2:4], "big")
+        msg = payload[4:].decode()
+
+        return cls(msg=msg, src_addr=src_addr, dest_addr=dest_addr)
+
+    def get_dest_addr(self) -> int:
+        return int.from_bytes(self.dest_addr, "big")
+
+    def get_sender(self) -> int:
+        return int.from_bytes(self.src_addr, "big")
+
+    def get_msg(self):
+        return self.msg.decode()
+
+    def __str__(self):
+        def bytes_to_hex(b):
+            return "0x" + "".join("{:02x}".format(byte) for byte in b)
+
+        return (
+            "XBeeMessage([src_addr: " + bytes_to_hex(self.src_addr) +
+            "], [dest_addr: " + bytes_to_hex(self.dest_addr) +
+            "], [msg: " + self.msg.decode() + "])"
+        )
